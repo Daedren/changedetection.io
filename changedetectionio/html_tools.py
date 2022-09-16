@@ -141,6 +141,48 @@ def extract_json_as_string(content, jsonpath_filter):
 
     return stripped_text_from_html
 
+def extract_json_as_string_with_jq(content, jsonpath_filter):
+
+    stripped_text_from_html = False
+    jsonpath_expression = jsonpath_filter.replace('jq:', '')
+
+    # Try to parse/filter out the JSON, if we get some parser error, then maybe it's embedded <script type=ldjson>
+    import jq
+    try:
+        stripped_text_from_html = jq.compile(jsonpath_expression).input(json.loads(content)).all()
+        pretty_printed = json.dumps(stripped_text_from_html, indent=4, ensure_ascii=True)
+    except json.JSONDecodeError:
+
+        # Foreach <script json></script> blob.. just return the first that matches jsonpath_filter
+        s = []
+        soup = BeautifulSoup(content, 'html.parser')
+        bs_result = soup.findAll('script')
+
+        if not bs_result:
+            raise JSONNotFound("No parsable JSON found in this document")
+
+        for result in bs_result:
+            # Skip empty tags, and things that dont even look like JSON
+            if not result.string or not '{' in result.string:
+                continue
+                
+            try:
+                json_data = json.loads(result.string)
+            except json.JSONDecodeError:
+                # Just skip it
+                continue
+            else:
+                stripped_text_from_html = jq.compile(jsonpath_expression).input(json_data).all()
+                if stripped_text_from_html:
+                    break
+                pretty_printed = json.dumps(stripped_text_from_html, indent=4, ensure_ascii=True)
+
+    if not pretty_printed:
+        # Re 265 - Just return an empty string when filter not found
+        return ''
+
+    return pretty_printed
+
 # Mode     - "content" return the content without the matches (default)
 #          - "line numbers" return a list of line numbers that match (int list)
 #

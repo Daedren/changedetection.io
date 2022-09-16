@@ -16,6 +16,8 @@ chardet > 2.3.0
 
 wtforms ~= 3.0
 jsonpath-ng ~= 1.5.3
+jq ~= 1.2.3
+
 
 # Notification library
 apprise ~= 1.0.0

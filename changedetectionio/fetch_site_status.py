@@ -171,6 +171,9 @@ class perform_site_check():
             if 'json:' in css_filter_rule:
                 stripped_text_from_html = html_tools.extract_json_as_string(content=fetcher.content, jsonpath_filter=css_filter_rule)
                 is_html = False
+            elif 'jq:' in css_filter_rule:
+                stripped_text_from_html = html_tools.extract_json_as_string_with_jq(content=fetcher.content, jsonpath_filter=css_filter_rule)
+                is_html = False
 
         if is_html or is_source:
             

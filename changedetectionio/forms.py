@@ -303,6 +303,20 @@ class ValidateCSSJSONXPATHInput(object):
 
                 # Re #265 - maybe in the future fetch the page and offer a
                 # warning/notice that its possible the rule doesnt yet match anything?
+            if 'jq:' in line:
+                if not self.allow_json:
+                    raise ValidationError("jq not permitted in this field!")
+
+                input = line.replace('jq:', '')
+                import jq
+
+                try:
+                    jq.compile(input)
+                except (ValueError) as e:
+                    message = field.gettext('\'%s\' is not a valid jq expression. (%s)')
+                    raise ValidationError(message % (input, str(e)))
+                except:
+                    raise ValidationError("System error")
 
 
 class quickWatchForm(Form):
