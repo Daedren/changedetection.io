@@ -7,6 +7,17 @@ on:
 #    branches: [master]
 #    tags: ['0.*']
 #    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker Hub tag'
+        required: true
+        default: 'latest'
+      branch:
+        description: 'Branch to build'
+        required: true
+        default: 'master'
+    
 
   # Or a new tagged release
   release:
@@ -40,6 +51,9 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }} || ${{ github.event.release.tag_name }} != ''
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.branch || 'master' }}
+
       - name: Set up Python 3.9
         uses: actions/setup-python@v2
         with:
@@ -51,6 +65,9 @@ jobs:
           pip install flake8 pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+      
+      - name: Install more dependencies
+        run: sudo apt-get install autoconf automake build-essential libtool python3-dev
 
       - name: Create release metadata
         run: |
@@ -88,7 +105,7 @@ jobs:
       # master branch -> :dev container tag
       - name: Build and push :dev
         id: docker_build
-        if: ${{ github.ref }} == "refs/heads/master"
+        if: github.ref == 'refs/heads/master'
         uses: docker/build-push-action@v2
         with:
           context: ./
@@ -115,6 +132,20 @@ jobs:
             ${{ secrets.DOCKER_HUB_USERNAME }}/changedetection.io:latest
             ghcr.io/dgtlmoon/changedetection.io:latest
           platforms: linux/amd64,linux/arm64,linux/arm/v6,linux/arm/v7
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+      
+      - name: Build and push manual run
+        id: docker_build_workflow_dispatch
+        if: github.event.inputs.tag != ''
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/changedetection.io:${{ github.event.inputs.tag }}
+          platforms: linux/amd64,linux/arm64
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
